@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getJson } from '../api/client.js';
 import { CapabilityCard } from './CapabilityCard.js';
 
 type LeaderboardEntry = {
@@ -7,16 +9,34 @@ type LeaderboardEntry = {
 };
 
 export default function Leaderboard() {
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLeaderboard(null);
+    setError(null);
+
+    getJson<{ leaderboard?: LeaderboardEntry[] }>('/api/leaderboard')
+      .then((response) => {
+        if (active) setLeaderboard(Array.isArray(response.leaderboard) ? response.leaderboard : []);
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Request failed');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <CapabilityCard<LeaderboardEntry>
       title="Leaderboard"
       description="Compare team point totals."
-      path="/api/leaderboard"
       emptyText="No leaderboard rankings found."
-      getItems={(response) => {
-        const value = response as { leaderboard?: LeaderboardEntry[] };
-        return Array.isArray(value.leaderboard) ? value.leaderboard : [];
-      }}
+      items={leaderboard}
+      error={error}
       renderItem={(entry) => (
         <span>
           {entry.rank ? `${entry.rank}. ` : ''}

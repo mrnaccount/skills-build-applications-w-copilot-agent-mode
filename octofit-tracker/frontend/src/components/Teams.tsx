@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getJson } from '../api/client.js';
 import { CapabilityCard } from './CapabilityCard.js';
 
 type Team = {
@@ -7,16 +9,34 @@ type Team = {
 };
 
 export default function Teams() {
+  const [teams, setTeams] = useState<Team[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setTeams(null);
+    setError(null);
+
+    getJson<{ teams?: Team[] }>('/api/teams')
+      .then((response) => {
+        if (active) setTeams(Array.isArray(response.teams) ? response.teams : []);
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Request failed');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <CapabilityCard<Team>
       title="Teams"
       description="Manage teams and members."
-      path="/api/teams"
       emptyText="No teams found."
-      getItems={(response) => {
-        const value = response as { teams?: Team[] };
-        return Array.isArray(value.teams) ? value.teams : [];
-      }}
+      items={teams}
+      error={error}
       renderItem={(team) => (
         <span>
           {team.name ?? 'Team'}
